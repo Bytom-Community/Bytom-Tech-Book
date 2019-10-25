@@ -320,7 +320,7 @@ Users can write smart contract programs in a simple high level programming langu
 
 ![图 1-10 比原链架构示意图](https://github.com/Bytom-Community/Bytom-Tech-Book/blob/master/Chapter01_pic/pic_08.png)
 
-​	As a decentralized distributed system, the pattern of communicating between nodes is very important for Bytom to maintain the stability of the whole system. The synchronization of transactions and nodes state all relys on the communication between each node in the network. The network communication of Bytom is based on the P2P communication protocol and also has some special changes according its own features. The P2P netwo communication Layer of Bytom includes four parts: nodes discovery, synchronization of transactions, synchronization of blocks and Propagation of blocks and transactions.
+​	As a decentralized distributed system, the pattern of communicating between nodes is very important for Bytom to maintain the stability of the whole system. The synchronization of transactions and nodes state all relys on the communication between each node in the network. The network communication of Bytom is based on the P2P communication protocol and also has some special changes according its own features. The P2P netwo communication Layer of Bytom includes four parts: nodes discovery, synchronization of transactions, synchronization of blocks and propagation of blocks and transactions.
 
 > 比原链作为一个去中心化的分布式系统，其底层个体间的通信机制对整个系统的稳定运行显然十分重要。个体间数据的同步、状态的更新都依赖于整个网络中每个个体之间的通信机制。比原链的网络通信基于P2P通信协议，又根据自身业务的特殊性做了特别的设计。比原链的P2P网络通信层，主要分为节点发现、区块同步、交易同步和快速广播四大部分。
 
@@ -328,7 +328,7 @@ Users can write smart contract programs in a simple high level programming langu
 
  ***1. Nodes discovery（节点发现）***
 
-​	Nodes discovery of P2P network mainly aims to solve how the new node join the network of Bytom, which requires the new node can be known by other nodes as soon as possible, and gets information from other nodes as well. The Bytom nodes discovery uses Kademli, which is a overlay network with a specific structure of the P2P network.  Each node is identified by a number or node ID, which is stored in each node. Kademlia stores nodes in the k-buckets, and every node just connects with the n closest nodes to form the topological structure of network as follows :
+​	Nodes discovery of P2P network mainly aims to solve how the new node join the network of Bytom, which requires the new node can be known by other nodes as soon as possible, and gets information from other nodes as well. The Bytom nodes discovery uses Kademli, which is a overlay network with a specific structure of the P2P network. Each node is identified by a number or node ID, which is stored in each node. Kademlia stores nodes in the k-buckets, and every node just connects with the n closest nodes to form the topological structure of network as follows : 
 ![图 1-11 比原链架构示意图](https://github.com/Bytom-Community/Bytom-Tech-Book/blob/master/Chapter01_pic/pic_09.png)
 
 > P2P节点发现主要解决新加入网络的节点如何连接到比原链网络中。新加入的节点能够快速的被网络中其他的节点感知；同时节点自己也能够获得其他节点的信息，与其通信交换数据。比原链中的节点发现使用的是Kademlia算法实现的节点发现机制。Kademlia算法实现是一个结构化的P2P覆盖网络，每个节点都有一个全网唯一的标识称为Node ID。Node ID被分散的存储在各个节点上。Kademlia将发行的节点存储到k-bucket中，每个节点只连接距离自己最近的n个节点。以此形成的网络拓扑结构如下所示：
@@ -501,6 +501,7 @@ $ ./bytomcli set-mining true
 
 Readers can try it themselves. 
 
+​	Readers can try it themselves.
 > 比原链在默认情况下挖矿模式是关闭状态，开启挖矿模式有两种方式，第一种使用bytomcli命令行交互方式，将mining参数设置为true，此时bytomcli会通过rpc协议跟bytomd进程交互并启用挖矿模式。关闭挖矿模式则指定set-mining参数为false。第二种方式使用dashboard页面启用挖矿参数，在这里请读者自行探索dashboard。
 
 ***4. SDKs in other languages***
