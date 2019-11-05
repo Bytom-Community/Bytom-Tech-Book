@@ -2,15 +2,15 @@
 
 ## 4.1 Introduction 
 
-​	ApiServer is an important component of Bytom, which is used to listen to, process and response to requests. Its main functions are receiving users' requests, distributing them according to the routing rules and returningneir results to users.
+​	ApiServer is an important component of Bytom blockchain. ApiServer listens to user requests, routes them to different code blocks based on the routing rules and returns responses to users.
 
 > 比原链架构中，ApiServer接口层是一个重要组件，是一个监听请求、处理请求、响应请求的服务端。主要功能接收用户发送的请求，并按照相应的路由规则实现请求的路由分发，最终将请求处理后的结果响应给用户。
 
-​	This chapter covers:
+​	This chapter walks through APIServer implementation and shows:
 
-* Create a simple HTTP Server in GO language to make readers understand the process of creating HTTP server.
-* Introduce how ApiServer creates HTTP Server, listen ports and receive requests and the process of requests processing and response in HTTP protocol.
-* A complete HTTP request life cycle.
+* How to create a simple HTTP Server in Go language.
+* How ApiServer implements a http server which accepts requests and returns responses using HTTP protocol.
+* HTTP request life cycle.
 
 > 本章将从源码角度分析比原链的ApiServer的工作流程。内容如下：
 >
@@ -20,9 +20,9 @@
 
  
 
-## 4.2 Create a Simple HTTP Server(实现一个简易HTTP Server)
+## 4.2 A Simple HTTP Server Implementation(实现一个简易HTTP Server)
 
-​	In GoLang, the `net/http` library offers HTTP programming related interfaces and encapsulates many functions such as TCP link and message parsing. `http.request` object and `http.ResponseWriter` object are already enough for users interaction. The arguments of requests will be sent and processed by the handler, which also writes the result to the `Response`. Here is the code of a simple HTTP Server:
+​	The `net/http` package from Golang standard library provides an implementation of HTTP protocol with necessary interfaces and functionality such as TCP connection and message parsing. You can write a simple http request handler with two arguments `http.request` and `http.ResponseWriter`. The http handler can access request parameters and write out the result as a `Response`. A very basic implementation of HTTP Server looks as follows:
 
 > GO语言的标准库net/http提供了HTTP编程相关的接口，封装了内部TCP连接和报文解析等功能，使用者只需要http.request和http.ResponseWriter两个对象交互就足够了。我们实现handler，请求会通过参数传递进来，会根据请求的数据做处理，把结果写到Response中。下面我们实现一个简易的HTTP服务，代码如下所示：
 
@@ -58,29 +58,29 @@ func main() {
 }
 ```
 
-​	When this HTTP Service runs, it sends a request to local `8080` port and returns `Hello,Word!` .
+​	Start this HTTP Service and make a http request on localport `8080` to http://localhost:8080/ you will get a `Hello, World!` response.
 
 > 当我们运行上面的HTTP服务以后，请求本地的8080端口，HTTP服务会返回给我们“Hello, World”信息。
 
-​	An HTTP Service is created by these three steps:
+​	An HTTP Service can be created in three steps:
 
-* Instantiate `http.NewServeMux()` to get the route of `mux`, then add valid routers to `mux.Handle`. Each router has HTTP request method (GET, POST, PUT, DELET), URL and Handler callback function.
-* Listen the `8080` port.
-* Use the listening address as an argument. The HTTP Service serves external requests by running`Serve(listener) `.
+* Instantiate a new HTTP request multiplexer using `http.NewServeMux()` into `mux` variable, then add a route and a handler for this route using `mux.HandleFunc`. Each route has HTTP request method (GET, POST, PUT, DELETE), a URL path and callback Handler function.
+* Listen to local `8080` port and create a listener object.
+* Using the `listener` as an argument, start http service by calling `Serve(listener) `.
 
 > 一个HTTP服务的创建主要有三部分组成：
 >
-> * 实例化http.NewServeMux()得到mux路由。为mux.Handle添加多个有效的router路由项。每一个路由项由HTTP请求方法（GET、POST、PUT、DELET）、URL和Handler回调函数组成。
+> * 实例化http.NewServeMux()得到mux路由。为mux.Handle添加多个有效的router路由项。每一个路由项由HTTP请求方法（GET、POST、PUT、DELETE）、URL和Handler回调函数组成。
 > * 监听本地的8080端口。
 > * 将监听地址作为参数，最终执行Serve(listener)开始服务于外部请求。
 
  
 
-## 4.3 Create HTTP Service (ApiServer创建HTTP服务)
+## 4.3 ApiServer HTTP Service (ApiServer创建HTTP服务)
 
-### 4.3.1 Create API Object (创建API对象)
+### 4.3.1 Create an API Object (创建API对象)
 
-​	`ApiServer` is managed by `API` object. Before running `ApiServer`, `API` object need to be initialized. Here is the code:
+​	`API` object manages the `ApiServer`. Before running `ApiServer`, We need to initialize the `API` object. The code looks as follows:
 
 > API对象负责管理整个ApiServer的管理工作，在运行ApiServer之前，首先要初始化它。代码如下所示：
 
@@ -116,21 +116,21 @@ func NewAPI(sync *netsync.SyncManager, wallet *wallet.Wallet, txfeeds *txfeed.Tr
 }
 ```
 
-​	First of all, `API` object is initialized by `api.NewAPI`. There are many arguments in `ApiServer`:
+​	`api.NewAPI` creates a new `API` object. `ApiServer` manages a lot of objects so it needs many function arguments. Some of these are:
 
-* listenAddr：Local port. If the system environment variable `LISTEN` isn't set, `config.ApiAddress` (default 9888) will be used as `listenAddr`.
-* n.api.StartServer: Listen local port addresses and start HTTP Service.
+* listenAddr：Local port, If the environment variable `LISTEN` is not set, the default port of 9888 from `config.ApiAddress` will be used as `listenAddr`.
+* n.api.StartServer: Start a HTTP Service on local port.
 
 > 首先，api.NewAPI初始化API对象。ApiServer管理的事情很多，所以参数也相对较多，其中：
 >
 > * listenAddr：本地端口，如果系统没有设置LISTEN环境变量则使用config.ApiAddress配置地址，默认为9888。
 > * n.api.StartServer：监听本地的地址端口，启动HTTP服务。
 
- 	`NewAPI()` method has three operations:
+ 	`NewAPI()` method has these three instructions:
 
-* Instantiate `API` object.
-* Add routers by `api.buildHandle()` method.
-* Instantiate `http.Server`, set `auth`, etc. by `api.initServer()` method.
+* Instantiate a new `API` object.
+* Add routes by calling `api.buildHandle()` method.
+* Initialize `http.Server`, set `auth`, etc. by calling `api.initServer()` method.
 
 > NewAPI函数我们看到有三个操作：
 >
@@ -140,9 +140,9 @@ func NewAPI(sync *netsync.SyncManager, wallet *wallet.Wallet, txfeeds *txfeed.Tr
 
  
 
-### 4.3.2 Create router (创建router路由项)
+### 4.3.2 Create routes for router (创建router路由项)
 
-​	HTTP requests are sent to corresponding callback functions through router that has been matched successfully. Only handlers related to account will be introduced here, since Bytom has too many handler and they are all similar. Here is the code:
+​	HTTP requests are routed to corresponding handler functions through a router that matches the url paths and methods to handlers. Bytom implements many such handlers and all of them have same interface. Here we only introduce account related handler implementation. The code is as follows:
 
 > router路由被匹配后，负责将HTTP请求交给对应的回调函数。比原链代码中路由项过多。这里只介绍关于账号相关的handler，其它的handler大同小异。代码如下所示：
 
@@ -163,16 +163,16 @@ func (a *API) buildHandler() {
 }
 ```
 
-​	Here it uses `http.NewServeMux()` in Go library to create a router to distribute routes. As we can see, each router is made of a url and a handle callback function. Once the url user requested matches `/net-info`, `ApiServer` will run `a.getNetInfo` function and send arguments.
+​	Here we use an http multiplexer `http.NewServeMux()` from Go standard library to create a router. As we can see, each route is made of a url and a handler callback function. Once the url requested matches `/net-info`, `ApiServer` will run `a.getNetInfo` function and pass arguments.
 
 > 我们使用Golang标准库http.NewServeMux()创建一个router路由器，提供请求的路由分发功能。我们可以看到一条router项由url和对应的handle回调函数组成。当我们请求的url匹配到/net-info时，ApiServer会执行a.getNetInfo回调函数，并将用户的传参也带过去。
 
 ​	Other handler work:
 
-* latencyHandler：When requests can't find the web path, it will match `/error` with requests.
-* maxBytesHandler：It limit the size of requests with no more than 10MB for each.
-* webAssetsHandler：It adds routers of dashboard and equity pages, which are hard-coded in Bytom. Their paths are `dashboard/dashboard.go` and `equity/equity.go` respectively.
-* gzip.Handler：To enable `gzip`, the level of `gzip.BestSpeed` need to be set (default level-1 and the highest is level-9). Higher level, more time cpu uses. The level can be adjusted according to the the amount of data HTTP Service receives .
+* latencyHandler：When there is no matching route for the request URL path, codeblock for error path `/error` is called.
+* maxBytesHandler：It limits the size of requests to no more than 10MB for each request.
+* webAssetsHandler：It adds routes needed of dashboard and equity pages. These paths are hard-coded in bytomd in `dashboard/dashboard.go` and `equity/equity.go`.
+* gzip.Handler：gzip handler provides a way of compressing the response body. To enable `gzip` data compression, the level of `gzip.BestSpeed` need to be set (default level is 1 and the highest level is 9). Higher level uses more cpu.
 
 > 额外的handler处理：
 >
@@ -185,7 +185,7 @@ func (a *API) buildHandler() {
 
 ### 4.3.3 Instantiate http.Server (实例化http.Server)
 
-​	`http.Server` is an HTTP Service object. It is the basis of HTTP Service work. Here is the code:
+​	`http.Server` struct makes it easy to build and run an HTTP Service. Here is the code:
 
 > http.Server是一个HTTP服务对象， 是运行HTTP服务的基础。代码如下所示：
 
@@ -220,11 +220,11 @@ func (a *API) initServer(config *cfg.Config) {
 
 ​	There are three steps to instantiate `http.Server` :
 
-1) AuthHandler: It enables `auth`, which means users need to enter `access token` on `dashboard` to login.  `auth` is enabled by default .
+1) AuthHandler: It handles `authentication` for incoming http requests, which means users need to enter valid `access token` on `dashboard` to login.  `authentication` is enabled by default .
 
-2) RedirectHandler：When users enter  "/", it will jump to "/dashboard/" and set the status "302" by default.
+2) RedirectHandler：When users enter  "/", it will redirect the request to "/dashboard/" and set the status to "302" by default.
 
-3) http.Server: Set the timeout of reading and writing and instantiate `http.Server`。
+3) http.Server: Set timeouts for reading and writing and instantiate an `http.Server` object.
 
 > 实例化http.Server分为以下几步：
 >
@@ -234,15 +234,15 @@ func (a *API) initServer(config *cfg.Config) {
 >
 > 3) http.Server：设置读写超时时间并实例化http.Server。
 
-​	By now, all handers have been registered in HTTP Server and `http.Server` object also has been instantiated. We will listen ports and enable HTTP Service next.
+​	So far, all handers have been registered in HTTP Server and `http.Server` object has been instantiated. Next, we will listen on local ports and start HTTP Service.
 
 > 到目前为止，所有的handle已经被注册到HTTP 服务器中并实例化http.Server服务对象，下面操作监听端口，启动HTTP服务。
 
 
 
-### 4.3.4 Enable Api Server (启动ApiServer服务)
+### 4.3.4 Start Api Server (启动ApiServer服务)
 
-​	Use `net.listen` in GoLang library to listen local ports addresses. Here starts a goroutine to run HTTP service due to HTTP service is a persistent working. If there was no error message when running `a.server.Serve`, the `9888` port is started successfully. By now, `ApiServer ` has been waiting for users' requests and starts a goroutine to process each request once received. Here is the code:
+​	We use `net.listen` from Golang standard library to listen on local port. goroutines are functions that run concurrently with other functions. This is a concurrency feature available in golang. goroutines are used to start long running services like the Http server. If there are no error messages so far when running `a.server.Serve`, the http server is started on `9888` port. At this point, the `ApiServer` is running and is in a waiting state for user requests. For every new request, `ApiServer` starts a goroutine to process that request. The code looks as follows:
 
 > 通过Golang标准库net.listen方法，监听本地的地址端口。由于HTTP服务是一个持久运行的服务，我们启动一个goroutine专门运行HTTP服务。当运行a.server.Serve没有任何报错时，我们可以看到服务器上启动的9888端口。此时ApiServer已经处于等待接收用户的请求的状态，每当有请求被接收后，ApiServer会单独启用一个goroutine来处理该请求。代码如下所示： 
 
@@ -264,17 +264,17 @@ func (a *API) StartServer(address string) {
 }
 ```
 
-​	The process of `server.Serve` working is as follows:
+​	`server.Serve` works as follows:
 
-1) `a.server.Serve` starts a `for` loop to keep receiving accept requests.
+1) `a.server.Serve` starts a forever `for` loop that keeps receiving incoming requests.
 
-2) Instantiate a  `Conn` for each request and also start a `goroutine` for this request to operate `handle`.
+2) Instantiate a new Connection `Conn` for each request and also start a `goroutine` to handle for this request.
 
-3) `c.readRequest(ctx)` reads each request.
+3) `c.readRequest(ctx)` reads contents of each request.
 
-4) Chose `handler` according to request and go into the HTTP Server of this handler.
+4) Chose a `handler` for this request and call ServeHTTP of this handler.
 
-5) Call `w.finishRequest` to delete conn buffer data and stop tcp link. Request is over.
+5) Call `w.finishRequest` to delete conn buffer data, close the tcp connection and end the request.
 
 > 我们来跟踪server.Serve的代码流程:
 >
@@ -290,9 +290,9 @@ func (a *API) StartServer(address string) {
 
  
 
-### 4.3.5 Receive and Respond to Request (接收并响应请求)
+### 4.3.5 Receive and Respond to Requests (接收并响应请求)
 
-​	When starting an HTTP request, we can use `curl` commdline to make an HTTP request to get the network status of the current node. Here is the information of `ApiServer` response: 
+​	We use `curl` to initate an HTTP request from commandline and get the network status of current node. Here is a sample `ApiServer` response: 
 
 > 当我们发起一个HTTP请求，使用curl命令发起HTTP请求获取当前节点运行的网络状态，ApiServer响应给我们如下数据：
 
@@ -313,7 +313,7 @@ $ curl -s http://localhost:9888/net-info|jq .
 }
 ```
 
-​	Anyalse the process of  `ApiServer` :
+​	Let's look at how `ApiServer` processes the requests:
 
 > 解析ApiServer的处理过程：
 
@@ -323,7 +323,7 @@ $ curl -s http://localhost:9888/net-info|jq .
 m.Handle("/net-info", jsonHandler(a.getNetInfo))
 ```
 
-​	`ApiServer` parses the head of HTTP, matches the path with `/net-info` and jumps to `a.getNetInfo` function.
+​	`ApiServer` parses request http headers, matches the path with `/net-info` and jumps to `a.getNetInfo` callback function.
 
 > ApiServer解析HTTP头，匹配到path路径/net-info，跳转至a.getNetInfo回调函数。
 
@@ -335,7 +335,7 @@ func (a *API) getNetInfo() Response {
 }
 ```
 
-​	`getNetInfo()` function gets the object information by `P2P`, `cpuMinner`, etc. `getNetInfo()` serializes `NetInfo` structure to JSON format and then returns it to users by instantiating `Response`.
+​	`getNetInfo()` method gets more information from objects like `P2P`, `cpuMinner`, etc and serializes the `NetInfo` structure to JSON format and  returns it to users by instantiating a new `Response` object.
 
 > GetNetInfo函数通过P2P、cpuMinner等对象获取信息。getNetInfo函数将NetInfo结构体序列化至JSON格式，并通过实例化Response返回给用户。
 
@@ -350,18 +350,18 @@ type Response struct {
 	Data        interface{} `json:"data,omitempty"`
 }
 
-func NewS\uccessResponse(data interface{}) Response {
+func NewSuccessResponse(data interface{}) Response {
 	return Response{Status: SUCCESS, Data: data}
 }
 ```
 
-​	`Response` is instantiated by `NewSuccessResponse`, and the HTTP status  code is 200. Here is the description:
+​	A new `Response` object is instantiated by `NewSuccessResponse` method with HTTP status code 200. Here is the description:
 
 * Status: The status string
 * Code: The status code
 * Msg: The status description
-* ErrorDetail: Error message. It is null when requesting successfully
-* Data: Data to response users.
+* ErrorDetail: Error message. It is null when request is successfully
+* Data: Data response to user's request.
 
 > NewSuccessResponse实例化Response，并设置HTTP状态码为200。Response结构描述如下：
 >
@@ -371,9 +371,9 @@ func NewS\uccessResponse(data interface{}) Response {
 > * ErrorDetail：错误信息，请求成功时，错误信息为空。
 > * Data：响应用户的数据。
 
-## 4.4 The Life Cycle of an HTTP Request (HTTP请求的完整生命周期)
+## 4.4 Life Cycle of an HTTP Request (HTTP请求的完整生命周期)
 
-​	`ApiServer` just offers HTTP short link. The link will be shut down after an HTTP request/response and needs to be rebuild when the next HTTP request/response happens. Here is a picture to show the life cycle of an HTTP request : 
+​	`ApiServer` creates a short lived HTTP connection for every request. The connection will be closed after the HTTP request is handled and the response is sent back. A new connection needs to be rebuild for the next HTTP request/response. Here is a picture that shows the life cycle of an HTTP request : 
 
 > ApiServer服务提供HTTP短连接（非持久连接）服务请求。客户端和服务端进行一次HTTP请求/响应之后，就关闭连接。下一次的HTTP请求/响应操作就需要重新建立连接。一次HTTP请求的完整生命周期如下图所示：
 
@@ -385,19 +385,19 @@ The complete life cycle of HTTP request:
 
 2) ApiServer receives the HTTP request.
 
-3) Start a goroutine to process the request.
+3) A goroutine is started to process the request.
 
-4) Verify the auth of the request.
+4) Verify the authentication information in the request.
 
-5) Parse the request.
+5) Parse the request content.
 
-6) Call the handle callback function by router.
+6) Call the handler callback function based on the routing rules.
 
-7) Get handle information.
+7) Get data returned by handler.
 
-8) Set request status code.
+8) Set response status code.
 
-9) Respond to user's request.
+9) Send response to user.
 
 > HTTP请求的完整生命周期过程：
 >
@@ -421,15 +421,15 @@ The complete life cycle of HTTP request:
 
  
 
-## 4.5 Bytom API Description (比原链API接口描述)
+## 4.5 Bytom APIs(比原链API接口描述)
 
-#### 1. Wallet related API (钱包相关接口)
+#### 1. Wallet related APIs (钱包相关接口)
 
 | API                      | Description                                                  |
 | ------------------------ | ------------------------------------------------------------ |
-| /create-account          | Create account                                               |
+| /create-account          | Create an account                                            |
 | /list-accounts           | Returns the list of all available accounts.                  |
-| /delete-account          | Delete existed account                                       |
+| /delete-account          | Delete an existing account                                   |
 | /create-account-receiver | Create address and control program                           |
 | /list-addresses          | Returns the list of all available addresses by account.      |
 | /validate-address        | Verify the address is valid, and judge the address is own.   |
@@ -444,7 +444,7 @@ The complete life cycle of HTTP request:
 | /list-assets             | Returns the list of all available assets                     |
 | /create-key              | Create private key                                           |
 | /list-keys               | Returns the list of all available keys.                      |
-| /delete-key              | Delete existed key                                           |
+| /delete-key              | Delete existing key                                           |
 | /reset-key-password      | Reset key password                                           |
 | /check-key-password      | Check key password                                           |
 | /sign-message            | Sign a message with the key password(decode encrypted private key) of an address |
@@ -455,11 +455,11 @@ The complete life cycle of HTTP request:
 | /list-balances           | Returns the list of all available account balances.          |
 | /list-unspent-outputs    | Returns the sub list of all available unspent outputs for all accounts in your wallet. |
 | /backup-wallet           | Backup wallet to image file                                  |
-| /restore-wallet          | Restore wallet by image file                                 |
-| /rescan-wallet           | Trigger to rescan block information into related wallet      |
-| /wallet-info             | Return the information of wallet                             |
+| /restore-wallet          | Restore wallet from image file                               |
+| /rescan-wallet           | Trigger a rescan of block information into related wallet    |
+| /wallet-info             | Return the wallet information                                |
 
-#### 2.Token related  API (Token验证相关接口)
+#### 2.Token related  APIs (Token验证相关接口)
 
 | API                  | Description                                     |
 | -------------------- | ----------------------------------------------- |
@@ -468,41 +468,41 @@ The complete life cycle of HTTP request:
 | /delete-access-token | Delete existed access token                     |
 | /check-access-token  | Check access token is valid                     |
 
-#### 3.Transaction related API (交易相关接口)
+#### 3.Transaction related APIs (交易相关接口)
 
 | API                            | Description                                                  |
 | ------------------------------ | ------------------------------------------------------------ |
-| /submit-transaction            | Submit transaction                                           |
+| /submit-transaction            | Submit a transaction                                         |
 | /estimate-transaction-gas      | Submit transactions used for batch submit transactions       |
 | /get-unconfirmed-transaction   | Estimate consumed neu(1BTM = 10^8NEU) for the transaction    |
 | /list-unconfirmed-transactions | Query mempool transaction by transaction ID                  |
 | /decode-raw-transaction        | Decode a serialized transaction hex string into a JSON object describing the transaction |
 
-#### 4. Block related API (块信息相关接口)
+#### 4. Block related APIs (块信息相关接口)
 
-| API               | Description                                                  |
-| ----------------- | ------------------------------------------------------------ |
-| /get-block        | Returns the detail block by block height or block hash       |
-| /get-block-hash   | Returns the current block hash for blockchain                |
-| /get-block-header | Returns the detail block header by block height or block hash |
-| /get-block-count  | Returns the current block height for blockchain              |
-| /get-difficulty   | Returns the block difficulty by block height or block has    |
-| /get-hash-rate    | Returns the block hash rate by block height or block hash    |
-| /is-mining        | Returns the mining status                                    |
-| /set-mining       | Start up node mining                                         |
+| API               | Description                                                    |
+| ----------------- | ---------------------------------------------------------------|
+| /get-block        | Returns the block details by block height or block hash        |
+| /get-block-hash   | Returns the current block hash for blockchain                  |
+| /get-block-header | Returns the block header details by block height or block hash |
+| /get-block-count  | Returns the current block height for blockchain                |
+| /get-difficulty   | Returns the block difficulty by block height or block hash     |
+| /get-hash-rate    | Returns the block hash rate by block height or block hash      |
+| /is-mining        | Returns the mining status of current node                      |
+| /set-mining       | Start up node mining                                           |
 
-#### 5. Mining Pool related API (矿池相关接口)
+#### 5. Mining Pool related APIs (矿池相关接口)
 
 | API               | Description                               |
 | ----------------- | ----------------------------------------- |
 | /get-work         | Get the proof of work in Varint format    |
-| /get-work-json    | Get the proof of work by JSON             |
+| /get-work-json    | Get the proof of work in JSON             |
 | /submit-work      | Submit the proof of work in Varint format |
-| /submit-work-json | Submit the proof of work by JSON          |
+| /submit-work-json | Submit the proof of work in JSON          |
 | /is-mining        | Returns the mining status                 |
-| /set-mining       | Start up node mining                      |
+| /set-mining       | Start mining on this node                 |
 
-#### 6. Contract related API (合约相关接口)
+#### 6. Contract related APIs (合约相关接口)
 
 | API             | Description                                                |
 | --------------- | ---------------------------------------------------------- |
@@ -510,30 +510,30 @@ The complete life cycle of HTTP request:
 | /decode-program | Decode program                                             |
 | /compile        | Compile equity contract                                    |
 
-#### 7. P2P related API (P2P网络相关接口)
+#### 7. P2P related APIs (P2P网络相关接口)
 
 | API              | Description                                     |
 | ---------------- | ----------------------------------------------- |
 | /net-info        | Returns the information of current network node |
 | /list-peers      | Returns the list of connected peers             |
-| /disconnect-peer | Disconnect to specified peer                    |
-| /connect-peer    | Connect to specified peer                       |
+| /disconnect-peer | Disconnect a specified peer                     |
+| /connect-peer    | Connect to a specified peer                     |
 
  
 
 ## 4.6  API Tools (API接口调用工具)
 
-​	API needs to be tested when developing a public blockchain. There are many test tools, `curl` commandline and `postman` platform are recommended here. We take the `create-key` as an example in the following part.
+​	We need api tools to test and try out the api interfaces available on public blockchain. There are many tools available for this but we choose a command line tool `curl` and a graphical user interface tool `postman` to show how to make api calls. We use the `create-key` api as an example.
 
 > 在公链开发中，我们需要对API接口进行测试。测试工具有很多种，本节推荐使用两种方式curl命令或postman图形工具，在这里以create-key接口示例演示。
 
-### 4.6.1 Call API via `curl` commandline (使用curl命令行调用API接口)
+### 4.6.1 Call APIs using `curl` commandline (使用curl命令行调用API接口)
 
-`curl` is a command line tool and library for transferring data with URLs. Use `curl` commandline to send request in the network, then get and collect data and finally show it in the `standard output`.
+`curl` is an open source command line tool and library for interacting with http/s urls. Using `curl` command line, you can make http requests to any urls, get response and show it in the `standard console output`.
 
 > curl命令是利用URL语法在命令行方式下工作的开源文件传输工具。curl命令发出网络请求，然后得到和提取数据，并显示在"标准输出"中。
 
-​	Here we use `curl` commandline to call `create-key` to create private key and return it. Here is the code:
+​	We use `curl` commandline to make a `create-key` api call to create private key and show response. Here is the code:
 
 > 我们使用curl命令，请求访问create-key接口，创建私钥，并返回密钥的信息。代码示例如下：
 
@@ -545,11 +545,11 @@ $ curl -X POST http://localhost:9888/create-key -d '{ "alias" :"user1" , "passwo
 "file":"C:\\Users\\Mac\\AppData\\Roaming\\Bytom\\keystore\\UTC--2018-09-21T11-51-52.401546400Z--e35c76e1-0f6c-4431-bb0f-eca37206d885"}}
 ```
 
-​	Here are the arguments of `curl` commandline:
+​	The arguments used with `curl` commandline are:
 
 * -X: Set the method of request, such as GET, POST, DELETE, etc.
-* -d: Use `POST` to send ApiServer data.
-* Others can be learn on the internet.
+* -d: Send data to the api url using `POST` method.
+* Other parameters for curl can be found online or try `curl -h`
 
 > curl命令参数如下：
 >
@@ -557,7 +557,7 @@ $ curl -X POST http://localhost:9888/create-key -d '{ "alias" :"user1" , "passwo
 > * -d：使用POST方式向ApiServer发送数据。
 > * 其他参数请读者自行学习。
 
-​	Fields of the API result: 
+​	Values in API response: 
 
 * alias: The alias of the account is `user1`.
 * xpub: Public key.
@@ -569,28 +569,27 @@ $ curl -X POST http://localhost:9888/create-key -d '{ "alias" :"user1" , "passwo
 > * xpub：公钥。
 > * file：密钥文件的存储路径。
 
-### 4.6.2 Call API via Postman (使用Postman调用API接口)
+### 4.6.2 Call APIs using Postman (使用Postman调用API接口)
 
-​	Postman is a collaboration platform for API development. Its features simplify each step of building an API and streamline collaboration so you can create better APIs—faster.
+   Postman is a graphical REST api client which helps you develop and test http REST apis. With postman, you can make api calls using http methods like GET, POST etc.
 
-​	Dowland Postman on https://www.getpostman.com/apps.
+​	Download Postman from here https://www.getpostman.com/apps.
 
 > Postman是一个图形化接口请求工具，可以帮助我们更方便地模拟GET、POST及其他方式的请求来调用接口。
 >
 > 下载postman（官网下载：https://www.getpostman.com/apps）。
 
-​	Use Postman to call API by `POST` method. Enter request URL ( `http://127.0.0.1:9888/create-key` ) , enter `{"alias": "user0", "password": "123456"` in `raw` under `Body` in `Text` format, and click `send` button. It returns information that is as same `curl` above: 
+​	Use Postman to call create-key API with `POST` method. Enter request URL ( `http://127.0.0.1:9888/create-key` ) , enter `{"alias": "user0", "password": "123456"}` in `raw` under `Body` in `Text` format, and click `send` button. The return response is same as when we used `curl` above: 
 
 > 使用postman调用API接口，选择POST请求方式，输入http://127.0.0.1:9888/create-key；在Body标签下raw，选择Text格式，输入:{"alias": "user0", "password": "123456"};点击send，返回如上述curl下create-key相同格式内容：
 
 ![4-2 The Postman](https://github.com/Bytom-Community/Bytom-Tech-Book/blob/master/Chapter04_pic/pic_02.png)
 
-​	Call `create-access-token` via postman is as same. Moreover, the list of all available keys will be returned by `list-keys`.
+​	Similarly, you can try other apis using postman. `create-access-token` will create a new access token. `list-keys` will list all the private keys created.
 
 > postman下进行create-access-token同理，此处不再加以赘述。此外可通过list-keys来查看所创建的所有私钥。
 
-***Note: Everytime create an account needs to change the alias, or it will return fail message that the alias has been created.***
-
+***Note: Everytime you call create an account api, change the alias value, or it will return fail message that the alias has already been created.***
 
 
 
@@ -621,6 +620,6 @@ bytom/api/errors.go
 
 ## 4.8 Conclusion (本章总结)
 
-​	This chapter makes a practical example to show the process of creating a simple HTTP Server in GoLang. It includes the principle and the working process (receiving, processing, responding ) of HTTP Server and shows a whole life cycle by a diagram. In the last place, more attention is paid to how public blockchain offers HTTP API service to users. Bytom API has covered most of public blockchain related API, and also developed some extra API compared with other public blockchains, such as mining pool related API, token related API, etc.
+​	This chapter describes how to implement a simple http service using golang and it's standard library. We offer many practical details for how requests are received, processed and responses sent back with a request response life cycle diagram. We showed how public blockchains implement HTTP apis to handle user requests and finally we covered the APIs implemented in all public blockchains along with bytom specific apis like mining pool related API, token related API etc.
 
 > 本章介绍了如何使用GO语言标准库实现一个简易的HTTP Server服务。其中包括HTTP服务的工作原理，接收、处理、响应等过程。并以图文的方式介绍了一个HTTP请求的完整生命周期。最后详解了作为公链如何提供HTTP相关的接口。比原链API接口中已经包含了大部分公链所具备的接口，相比其他公链中比原链扩展了其他接口，比如矿池相关接口、token验证相关接口等。
